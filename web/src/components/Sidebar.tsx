@@ -49,9 +49,9 @@ const listItemMotion = {
   transition: { duration: 0.22, ease: 'easeOut' as const },
 }
 
-const MIN_WIDTH = 240
+const MIN_WIDTH = 200
 const MAX_WIDTH = 480
-const DEFAULT_WIDTH = 300
+const DEFAULT_WIDTH = 256
 const WIDTH_STORAGE_KEY = 'sidebar-width'
 
 export function Sidebar() {
