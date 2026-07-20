@@ -1,0 +1,19 @@
+langchain
+langchain-community
+langchain-core
+faiss-cpu
+pypdf
+python-dotenv
+langsmith
+ollama
+streamlit
+streamlit-chat
+sentence-transformers
+langgraph
+langchain-ollama
+
+# server/ (Phase 1 - Postgres schema & migrations)
+pydantic-settings
+sqlalchemy[asyncio]
+psycopg[binary,pool]
+alembic
