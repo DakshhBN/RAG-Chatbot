@@ -3,16 +3,20 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { AnimatePresence, motion } from 'motion/react'
 import {
+  Check,
   FileText,
   LogOut,
   MessageSquare,
+  Pencil,
   Plus,
   Sparkles,
   Trash2,
   Upload,
+  X,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -30,7 +34,7 @@ import {
   uploadDocument,
   type Document,
 } from '@/lib/documents'
-import { createThread, deleteThread, listThreads, type Thread } from '@/lib/threads'
+import { createThread, deleteThread, listThreads, renameThread, type Thread } from '@/lib/threads'
 import { cn } from '@/lib/utils'
 
 function initials(email: string) {
@@ -45,6 +49,11 @@ const listItemMotion = {
   transition: { duration: 0.22, ease: 'easeOut' as const },
 }
 
+const MIN_WIDTH = 240
+const MAX_WIDTH = 480
+const DEFAULT_WIDTH = 300
+const WIDTH_STORAGE_KEY = 'sidebar-width'
+
 export function Sidebar() {
   const navigate = useNavigate()
   const { threadId: activeThreadId } = useParams()
@@ -54,6 +63,52 @@ export function Sidebar() {
   const [threads, setThreads] = useState<Thread[]>([])
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [width, setWidth] = useState(() => {
+    const stored = Number(localStorage.getItem(WIDTH_STORAGE_KEY))
+    return stored >= MIN_WIDTH && stored <= MAX_WIDTH ? stored : DEFAULT_WIDTH
+  })
+  const widthRef = useRef(width)
+  const resizingRef = useRef(false)
+
+  const [renamingThreadId, setRenamingThreadId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const renameInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    widthRef.current = width
+  }, [width])
+
+  useEffect(() => {
+    function onMouseMove(e: MouseEvent) {
+      if (!resizingRef.current) return
+      setWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, e.clientX)))
+    }
+    function onMouseUp() {
+      if (!resizingRef.current) return
+      resizingRef.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      localStorage.setItem(WIDTH_STORAGE_KEY, String(widthRef.current))
+    }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [])
+
+  function handleResizeStart(e: React.MouseEvent) {
+    e.preventDefault()
+    resizingRef.current = true
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }
+
+  useEffect(() => {
+    if (renamingThreadId) renameInputRef.current?.focus()
+  }, [renamingThreadId])
 
   const refresh = useCallback(async () => {
     const [docs, thrs] = await Promise.all([listDocuments(), listThreads()])
@@ -124,8 +179,37 @@ export function Sidebar() {
     }
   }
 
+  function startRename(thread: Thread, e: React.MouseEvent) {
+    e.stopPropagation()
+    setRenamingThreadId(thread.id)
+    setRenameValue(thread.title ?? '')
+  }
+
+  function cancelRename(e?: React.MouseEvent) {
+    e?.stopPropagation()
+    setRenamingThreadId(null)
+    setRenameValue('')
+  }
+
+  async function saveRename(thread: Thread, e?: React.MouseEvent | React.FormEvent) {
+    e?.stopPropagation()
+    e?.preventDefault()
+    const title = renameValue.trim()
+    setRenamingThreadId(null)
+    if (!title || title === thread.title) return
+    try {
+      const updated = await renameThread(thread.id, title)
+      setThreads((prev) => prev.map((t) => (t.id === thread.id ? updated : t)))
+    } catch {
+      toast.error('Could not rename chat.')
+    }
+  }
+
   return (
-    <div className="flex h-screen w-72 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
+    <div
+      style={{ width }}
+      className="relative flex h-screen shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground"
+    >
       <div className="flex items-center gap-2 px-4 py-4">
         <motion.div
           initial={{ rotate: -8, scale: 0.9 }}
@@ -166,13 +250,18 @@ export function Sidebar() {
           )}
           <AnimatePresence initial={false}>
             {documents.map((doc) => (
-              <motion.button
+              // Not a <button> — the delete icon button is a sibling, and
+              // interactive elements can't validly nest inside a <button>.
+              <motion.div
                 key={doc.id}
                 {...listItemMotion}
+                role="button"
+                tabIndex={0}
                 whileHover={doc.status === 'ready' ? { x: 2 } : undefined}
                 whileTap={doc.status === 'ready' ? { scale: 0.98 } : undefined}
                 onClick={() => doc.status === 'ready' && handleStartChat(doc)}
-                disabled={doc.status !== 'ready'}
+                onKeyDown={(e) => e.key === 'Enter' && doc.status === 'ready' && handleStartChat(doc)}
+                aria-disabled={doc.status !== 'ready'}
                 className={cn(
                   'group flex items-center justify-between gap-2 overflow-hidden rounded-lg px-2.5 py-2 text-left text-sm transition-colors hover:bg-sidebar-accent',
                   doc.status === 'ready' ? 'cursor-pointer' : 'cursor-default opacity-70',
@@ -187,15 +276,15 @@ export function Sidebar() {
                 </span>
                 <span className="flex shrink-0 items-center gap-1">
                   <DocumentStatusBadge status={doc.status} />
-                  <span
-                    role="button"
+                  <button
+                    type="button"
                     onClick={(e) => handleDeleteDocument(doc, e)}
                     className="rounded p-1 opacity-0 transition-opacity hover:bg-destructive/10 group-hover:opacity-100"
                   >
                     <Trash2 className="size-3.5 text-destructive" />
-                  </span>
+                  </button>
                 </span>
-              </motion.button>
+              </motion.div>
             ))}
           </AnimatePresence>
         </div>
@@ -210,38 +299,93 @@ export function Sidebar() {
             </p>
           )}
           <AnimatePresence initial={false}>
-            {threads.map((thread) => (
-              <motion.button
-                key={thread.id}
-                {...listItemMotion}
-                whileHover={{ x: 2 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => navigate(`/chat/${thread.id}`)}
-                className={cn(
-                  'group relative flex items-center justify-between gap-2 overflow-hidden rounded-lg px-2.5 py-2 text-left text-sm transition-colors hover:bg-sidebar-accent',
-                  activeThreadId === thread.id && 'bg-sidebar-accent font-medium',
-                )}
-              >
-                {activeThreadId === thread.id && (
-                  <motion.span
-                    layoutId="active-thread-indicator"
-                    className="absolute top-1.5 bottom-1.5 left-0 w-0.5 rounded-full bg-primary"
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                  />
-                )}
-                <span className="flex min-w-0 items-center gap-2.5">
-                  <MessageSquare className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="truncate">{thread.title ?? 'Untitled chat'}</span>
-                </span>
-                <span
-                  role="button"
-                  onClick={(e) => handleDeleteThread(thread, e)}
-                  className="shrink-0 rounded p-1 opacity-0 transition-opacity hover:bg-destructive/10 group-hover:opacity-100"
+            {threads.map((thread) => {
+              const isRenaming = renamingThreadId === thread.id
+              return (
+                <motion.div
+                  key={thread.id}
+                  {...listItemMotion}
+                  className={cn(
+                    'group relative flex items-center gap-2 overflow-hidden rounded-lg text-sm transition-colors',
+                    !isRenaming && 'hover:bg-sidebar-accent',
+                    !isRenaming && activeThreadId === thread.id && 'bg-sidebar-accent font-medium',
+                  )}
                 >
-                  <Trash2 className="size-3.5 text-destructive" />
-                </span>
-              </motion.button>
-            ))}
+                  {activeThreadId === thread.id && (
+                    <motion.span
+                      layoutId="active-thread-indicator"
+                      className="absolute top-1.5 bottom-1.5 left-0 w-0.5 rounded-full bg-primary"
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    />
+                  )}
+
+                  {isRenaming ? (
+                    <form
+                      onSubmit={(e) => saveRename(thread, e)}
+                      className="flex w-full items-center gap-1 px-2 py-1.5"
+                    >
+                      <Input
+                        ref={renameInputRef}
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Escape' && cancelRename()}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-7 flex-1 text-sm"
+                      />
+                      <button
+                        type="submit"
+                        className="shrink-0 rounded p-1 hover:bg-primary/10"
+                        title="Save"
+                      >
+                        <Check className="size-3.5 text-primary" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelRename}
+                        className="shrink-0 rounded p-1 hover:bg-destructive/10"
+                        title="Cancel"
+                      >
+                        <X className="size-3.5 text-muted-foreground" />
+                      </button>
+                    </form>
+                  ) : (
+                    // Not a <button> — it contains the rename/delete icon buttons
+                    // as siblings, and interactive elements can't validly nest
+                    // inside a <button> (motion.button renders one).
+                    <motion.div
+                      role="button"
+                      tabIndex={0}
+                      whileHover={{ x: 2 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => navigate(`/chat/${thread.id}`)}
+                      onKeyDown={(e) => e.key === 'Enter' && navigate(`/chat/${thread.id}`)}
+                      className="flex flex-1 cursor-pointer items-center justify-between gap-2 overflow-hidden px-2.5 py-2 text-left"
+                    >
+                      <span className="flex min-w-0 items-center gap-2.5">
+                        <MessageSquare className="size-4 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{thread.title ?? 'Untitled chat'}</span>
+                      </span>
+                      <span className="flex shrink-0 items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={(e) => startRename(thread, e)}
+                          className="rounded p-1 opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100"
+                        >
+                          <Pencil className="size-3.5 text-muted-foreground" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteThread(thread, e)}
+                          className="rounded p-1 opacity-0 transition-opacity hover:bg-destructive/10 group-hover:opacity-100"
+                        >
+                          <Trash2 className="size-3.5 text-destructive" />
+                        </button>
+                      </span>
+                    </motion.div>
+                  )}
+                </motion.div>
+              )
+            })}
           </AnimatePresence>
         </div>
       </ScrollArea>
@@ -275,6 +419,11 @@ export function Sidebar() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <div
+        onMouseDown={handleResizeStart}
+        className="absolute top-0 right-0 z-10 h-full w-1 cursor-col-resize hover:bg-primary/30 active:bg-primary/50"
+      />
     </div>
   )
 }
