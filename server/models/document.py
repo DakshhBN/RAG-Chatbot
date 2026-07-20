@@ -26,7 +26,17 @@ class Document(Base):
     storage_key: Mapped[str] = mapped_column(String(512), nullable=False)
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[DocumentStatus] = mapped_column(
-        Enum(DocumentStatus, name="document_status", native_enum=False, length=20),
+        # values_callable is required — SQLAlchemy's Enum type persists the
+        # Python member *name* ("PROCESSING") by default, not its .value
+        # ("processing"), which doesn't match the migration's lowercase
+        # CHECK constraint (ck_documents_status).
+        Enum(
+            DocumentStatus,
+            name="document_status",
+            native_enum=False,
+            length=20,
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
         default=DocumentStatus.PROCESSING,
         nullable=False,
     )

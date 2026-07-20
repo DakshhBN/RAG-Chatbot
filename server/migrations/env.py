@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from logging.config import fileConfig
 
 from alembic import context
@@ -7,6 +8,11 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from server.config import settings
 from server.database import Base
 from server.models import Document, Thread, User  # noqa: F401  (register models on Base.metadata)
+
+if sys.platform == "win32":
+    # psycopg's async driver can't run on Windows' default ProactorEventLoop —
+    # only SelectorEventLoop. Not needed on Linux (e.g. Render in production).
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 config = context.config
 

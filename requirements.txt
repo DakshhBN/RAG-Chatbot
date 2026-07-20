@@ -1,19 +1,31 @@
-langchain
 langchain-community
 langchain-core
-faiss-cpu
 pypdf
 python-dotenv
 langsmith
-ollama
-streamlit
-streamlit-chat
-sentence-transformers
 langgraph
-langchain-ollama
 
-# server/ (Phase 1 - Postgres schema & migrations)
+# server/ (Postgres schema & migrations)
 pydantic-settings
 sqlalchemy[asyncio]
 psycopg[binary,pool]
 alembic
+
+# server/ (API, auth, RAG pipeline)
+fastapi
+uvicorn[standard]
+pydantic[email]
+python-multipart
+bcrypt
+pyjwt
+# Pinned: langgraph-checkpoint-postgres>=3.1 requires langgraph-checkpoint>=4.1,
+# which conflicts with langgraph 1.0.2 / langgraph-checkpoint-sqlite 3.0.0 (both
+# require langgraph-checkpoint<4.0). This pin is the newest combination where
+# `pip check` reports no broken requirements.
+langgraph-checkpoint==3.0.1
+langgraph-checkpoint-postgres==3.0.5
+langchain-groq
+langchain-text-splitters
+pinecone
+fastembed
+boto3
