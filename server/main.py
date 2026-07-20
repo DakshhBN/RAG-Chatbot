@@ -27,7 +27,7 @@ async def lifespan(app: FastAPI):
     await pool.close()
 
 
-app = FastAPI(title="RAG PDF Chatbot API", lifespan=lifespan)
+app = FastAPI(title="PdfGini API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

@@ -26,7 +26,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           <div className="flex size-8 items-center justify-center rounded-lg bg-primary-foreground/15">
             <Sparkles className="size-4.5" />
           </div>
-          RAG Chatbot
+          PdfGini
         </motion.div>
 
         <div className="relative flex flex-col gap-8">

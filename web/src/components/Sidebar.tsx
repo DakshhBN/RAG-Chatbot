@@ -219,7 +219,7 @@ export function Sidebar() {
         >
           <Sparkles className="size-4" />
         </motion.div>
-        <span className="font-semibold">RAG Chatbot</span>
+        <span className="font-semibold">PdfGini</span>
       </div>
 
       <div className="px-3 pb-2">
