@@ -219,7 +219,9 @@ export function Sidebar() {
         >
           <Sparkles className="size-4" />
         </motion.div>
-        <span className="font-semibold">PdfGini</span>
+        <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-xl font-bold tracking-tight text-transparent">
+          PdfGini
+        </span>
       </div>
 
       <div className="px-3 pb-2">

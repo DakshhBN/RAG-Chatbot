@@ -21,7 +21,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="relative flex items-center gap-2 text-lg font-semibold"
+          className="relative flex items-center gap-2.5 text-2xl font-bold tracking-tight"
         >
           <div className="flex size-8 items-center justify-center rounded-lg bg-primary-foreground/15">
             <Sparkles className="size-4.5" />
